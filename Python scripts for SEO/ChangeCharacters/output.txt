@@ -1,0 +1,5 @@
+|apics|170|17|
+|apics certification|20|0|
+|certificacion apics|20|0|
+|cltd|20|0|
+|cltd certification|20|0|

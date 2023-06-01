@@ -1,0 +1,97 @@
+#---------------------------------------------------------------#
+#  Script para agilizar la creación de prompts SEO              #
+#  Autor: Ignacio Sánchez Gómez                                 #
+#  DPTO: BirdCom                                                #
+#  Fecha Inicio: 30/05/2023                                     #
+#  Versión 1.0                                                  #
+#                                                               #
+#  ¡Importante! Hacer: pip install googlesearch-python,          #
+#                     pip install requests,                     #
+#                     pip install beautifulsoup4                #
+#---------------------------------------------------------------#
+
+from googlesearch import search
+from bs4 import BeautifulSoup
+import requests
+import time
+
+
+
+def get_meta_info(url):
+    try:
+        # Evitamos errores 403.
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers)  # Realizamos la solicitud HTTP con los encabezados personalizados
+        response.raise_for_status()  # Verificar errores HTTP
+        soup = BeautifulSoup(response.text, 'html.parser')
+        meta_title = soup.find('title')  # Buscar la etiqueta <title>
+        if meta_title is None:
+            raise ValueError("URL sin título definido explícitamente")  # Lanzar un ValueError si no hay título
+        meta_title = meta_title.text.strip()
+        meta_description = soup.find('meta', attrs={'name': 'description'})  # Buscar la etiqueta meta con name='description'
+        if meta_description is None or 'content' not in meta_description.attrs:
+            if meta_title is None:
+                raise ValueError("URL sin título ni descripción definidos explícitamente")  # Lanzar un ValueError si no hay título ni descripción
+            else:
+                raise ValueError("URL sin descripción definida explícitamente")  # Lanzar un ValueError si no hay descripción
+        meta_description = meta_description['content'].strip()
+        return meta_title, meta_description
+    except requests.exceptions.RequestException as e:
+        print(f"Ocurrió un error al obtener la información meta de la URL: {url}")  # Imprimir mensaje de error al obtener la información meta
+        print(e)
+        return None, None
+    except ValueError as e:
+        if "título" in str(e) and "descripción" in str(e):
+            print(f"URL sin título ni descripción definidos explícitamente: {url}")  # Imprimir mensaje de error si falta título y descripción
+        elif "título" in str(e):
+            print(f"URL sin título definido explícitamente: {url}")  # Imprimir mensaje de error si falta título
+        else:
+            print(f"URL sin descripción definida explícitamente: {url}")  # Imprimir mensaje de error si falta descripción
+        print(e)
+        return None, None
+    except Exception as e:
+        print(f"Ocurrió un error al procesar la URL: {url}")  # Imprimir mensaje de error genérico al procesar la URL
+        print(e)
+        return None, None
+
+
+
+def get_search_results(keyword, num_results=5):
+    search_results = search(keyword, num_results=num_results, lang='es', sleep_interval=2)  # Realizar la búsqueda en Google con la palabra clave
+    meta_info_list = []
+    for url in search_results:
+        meta_title, meta_description = get_meta_info(url)  # Obtener el meta título y meta descripción de cada URL
+        if meta_title and meta_description:
+            meta_info_list.append((meta_title, meta_description))  # Agregar el meta título y meta descripción a la lista si están presentes
+            time.sleep(2)  # Esperar 2 segundos antes de la siguiente solicitud
+        if len(meta_info_list) == 5:
+            break  # Salir del bucle si se han obtenido 5 resultados
+    return meta_info_list
+
+
+# Obtener Keyword mediante terminal
+keyword = input("Introduce tu KeyWord: ")
+
+# Obtener los 5 metatitles y metadescription
+results = get_search_results(keyword, num_results=10)  # Obtener los resultados de búsqueda
+print("Top 5 resultados:")
+print()
+for i, (title, description) in enumerate(results, start=1):
+    print(f"Resultado {i}:")  # Imprimir el número de resultado
+    print("Metatitle:", title)  # Imprimir el meta título
+    print("Metadescription:", description)  # Imprimir la meta descripción
+    print()
+
+# Guardar en utf-8 (por los emojis)
+with open("Top5MetaTags/metaOutput.txt", "w", encoding="utf-8") as file:
+    file.write("Top 5 resultados para la KeyWord " + "*" + keyword + "*" + ":\n\n")  # Escribir encabezado en el archivo
+    for i, (title, description) in enumerate(results, start=1):
+        file.write(f"Resultado {i}:\n")  # Escribir el número de resultado en el archivo
+        file.write("Metatitle: " + title + "\n")  # Escribir el meta título en el archivo
+        file.write("Metadescription: " + description + "\n\n")  # Escribir la meta descripción en el archivo
+
+
+print("Resultados guardados en metaOutput.txt.")
+
